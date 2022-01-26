@@ -7,8 +7,10 @@
 namespace bytedance_db_project {
 CustomTable::CustomTable() {
   // Since ncols must larger than 3
-  num_cols_tb_[0] = PART_ONE_NCOLS;
-  num_cols_tb_[1] = PART_TWO_NCOLS;
+  // 10 * 4, align to 8 -> = 5 Bytes per row
+  nbytespr_part_[0] = (FIXED_BITS_FIELD * PART_ONE_NCOLS + 7) >> 3;
+  // nbytespr_part_[0] = (nbytespr_part_[0] + 1) & (~0x1);
+  
 }
 
 CustomTable::~CustomTable() {
@@ -88,72 +90,50 @@ void CustomTable::BitPacker::reset() {
 
 void CustomTable::Load(BaseDataLoader *loader) {
   // TODO: Implement this!
-  BitPacker bit_packer[TABLE_NPARTS];
+  BitPacker bit_packer;
   num_cols_ = loader->GetNumCols();
   auto rows = loader->GetRows();
   num_rows_ = rows.size();
   // since some queries requires col3
   assert(num_cols_ > 3);
+  nbytespr_part_[1] = ((num_cols_ - PART_ONE_NCOLS) * FIXED_BITS_FIELD + 7) >> 3;
+  nbytespr_part_[1] = (nbytespr_part_[1] + 1) & (~0x1);
 
-  // allocate memory
-  num_cols_tb_[2] = num_cols_ - num_cols_tb_[0] - num_cols_tb_[1];
-  for (int i = 0; i < TABLE_NPARTS; ++i) {
-    nbytes_part_[i] = (FIXED_BITS_FIELD * num_rows_ *
-                       num_cols_tb_[i] + 7) >> 3;
-    nbytes_part_[i] = (nbytes_part_[i] + 1) & (~0x1);
-  }
-
-  for (size_t i = 0; i < TABLE_NPARTS; ++i) {
-    storage_part_[i] = new char[nbytes_part_[i]];
-    bit_packer[i].set_ptr_cur((uint16_t*) storage_part_[i]);
-  }
-  int nbytes_sum = num_rows_ * (FIXED_BITS_SUM_FIELD) >> 3;
-  nbytes_sum = (nbytes_sum + 7) & ~0x7;
-  storage_sum_row_ = new char[nbytes_sum];
+  for (size_t i = 0; i < TABLE_NPARTS; ++i)
+    storage_part_[i] = new char[(nbytespr_part_[i] * num_rows_ + 1)];
 
   for (size_t row_id = 0; row_id < num_rows_; row_id++) {
     auto cur_row = rows.at(row_id);
-    int64_t sum = 0; // less than 1024 * 1024 (20bits)
+    int64_t sum = 0;
     int32_t val;
+    bit_packer.set_ptr_cur((uint16_t*) (storage_part_[0] + nbytespr_part_[0] * row_id + 
+                                            (FIXED_BITS_SUM_FIELD >> 3)) );
     for (size_t col_id = 0; col_id < num_cols_; ++col_id) {
-      int tb_id;
       val = *(int32_t*) (cur_row + FIXED_FIELD_LEN * col_id);
       // assert(val < 1024 && val >= 0);
       sum += val;
-      if (col_id == 0) {
+      if (col_id == 0)
         sum_col0_ += val;
-        tb_id = 0;
+      // start of part II in this row
+      if (col_id == PART_ONE_NCOLS) {
+        bit_packer.flush();
+        bit_packer.set_ptr_cur((uint16_t*) (storage_part_[1] + nbytespr_part_[1] * row_id) );
       }
-      else if (col_id == 2 || col_id == 3) {
-        tb_id = 1;
-      }
-      else {
-        tb_id = 2;
-      }
-      bit_packer[tb_id].write((uint16_t) val, FIXED_BITS_FIELD);
+      bit_packer.write((uint16_t) val, FIXED_BITS_FIELD);
     }
-    PutRowSum(row_id, sum);
+    bit_packer.flush();
+    *(int64_t*) (storage_part_[0] + nbytespr_part_[0] * row_id) = sum;
   }
-  for (size_t i = 0; i < TABLE_NPARTS; ++i)
-    bit_packer[i].flush();
-
   is_col0_sumed_ = 1;
 }
 
 inline int64_t CustomTable::GetRowSum(int32_t row_id) {
-  int64_t val;
-  val = *(int64_t*) (storage_sum_row_ + row_id * (FIXED_BITS_SUM_FIELD >> 3));
-  val &= (1 << FIXED_BITS_SUM_FIELD) - 1;
-  return val;
+
+  return *(int64_t*) (storage_part_[0] + nbytespr_part_[0] * row_id);
 }
 
-inline void CustomTable::PutRowSum(int32_t row_id, int64_t val) {
-  int64_t ori_val;
-  assert(val < 1024 * 1024 * 2);
-  ori_val = *(int64_t*) (storage_sum_row_ + row_id * (FIXED_BITS_SUM_FIELD >> 3));
-  ori_val &= ~((1 << FIXED_BITS_SUM_FIELD) - 1);
-  ori_val |= val;
-  *(int64_t*) (storage_sum_row_ + row_id * (FIXED_BITS_SUM_FIELD >> 3)) = ori_val;
+inline void CustomTable::UpdateRowSum(int32_t row_id, int64_t val_diff) {
+  *(int64_t*) (storage_part_[0] + nbytespr_part_[0] * row_id) += val_diff;
 }
 
 int32_t CustomTable::GetIntField(int32_t row_id, int32_t col_id) {
@@ -164,21 +144,15 @@ int32_t CustomTable::GetIntField(int32_t row_id, int32_t col_id) {
   int32_t res = 0;
   int tb_id; // table idx
 
-  if (col_id == 0) {
-    tb_id = 0;
-  }
-  else if (col_id == 2 || col_id == 3) {
-    tb_id = 1;
-    col_id -= 2;
-  }
-  else {
-    tb_id = 2;
-    if (col_id != 1)
-      col_id -= 2;
-    col_id -= 1;
-  }
-  byte_id = ((row_id * num_cols_tb_[tb_id] + col_id) * FIXED_BITS_FIELD >> 3); 
-  bit_offset = (row_id * num_cols_tb_[tb_id] + col_id) * FIXED_BITS_FIELD - (byte_id << 3);
+  tb_id = col_id >= PART_ONE_NCOLS;
+  if (tb_id == 1)
+    col_id -= PART_ONE_NCOLS;
+
+  byte_id = (col_id * FIXED_BITS_FIELD >> 3); 
+  bit_offset = col_id * FIXED_BITS_FIELD - (byte_id << 3);
+  byte_id += nbytespr_part_[tb_id] * row_id;
+  if (tb_id == 0)
+    byte_id += FIXED_BITS_SUM_FIELD >> 3;
 
   v1 = *(uint8_t*) (storage_part_[tb_id] + byte_id);
   v2 = *(uint8_t*) (storage_part_[tb_id] + byte_id + 1);
@@ -187,7 +161,6 @@ int32_t CustomTable::GetIntField(int32_t row_id, int32_t col_id) {
   len1 = FIXED_BITS_FIELD - len0;
   res |= ((int32_t) v1 & ((1 << len0) - 1)) << len1;
   res |= (v2 >> (8 - len1));
-  // printf("byte_id: %d, bit_offset: %d, v1: %2X, v2: %2X", byte_id, bit_offset, v1, v2);
 
   return res;
 }
@@ -201,21 +174,15 @@ void CustomTable::PutIntField(int32_t row_id, int32_t col_id, int32_t field) {
   int tb_id; // table idx
   int64_t sum_diff;
 
-  if (col_id == 0) {
-    tb_id = 0;
-  }
-  else if (col_id == 2 || col_id == 3) {
-    tb_id = 1;
-    col_id -= 2;
-  }
-  else {
-    tb_id = 2;
-    col_id -= 1;
-    if (col_id != 1)
-      col_id -= 3;
-  }
-  byte_id = ((row_id * num_cols_tb_[tb_id] + col_id) * FIXED_BITS_FIELD >> 3); 
-  bit_offset = (row_id * num_cols_tb_[tb_id] + col_id) * FIXED_BITS_FIELD - (byte_id << 3);
+  tb_id = col_id >= PART_ONE_NCOLS;
+  if (tb_id == 1)
+    col_id -= PART_ONE_NCOLS;
+
+  byte_id = (col_id * FIXED_BITS_FIELD >> 3); 
+  bit_offset = col_id * FIXED_BITS_FIELD - (byte_id << 3);
+  byte_id += nbytespr_part_[tb_id] * row_id;
+  if (tb_id == 0)
+    byte_id += FIXED_BITS_SUM_FIELD >> 3;
 
   v1 = *(uint8_t*) (storage_part_[tb_id] + byte_id);
   v2 = *(uint8_t*) (storage_part_[tb_id] + byte_id + 1);
@@ -234,7 +201,7 @@ void CustomTable::PutIntField(int32_t row_id, int32_t col_id, int32_t field) {
   *(uint8_t*) (storage_part_[tb_id] + byte_id + 1) = v2;
 
   // update cached sum
-  PutRowSum(row_id, GetRowSum(row_id) + sum_diff);
+  UpdateRowSum(row_id, sum_diff);
   if (col_id == 0)
     sum_col0_ += sum_diff;
 }
