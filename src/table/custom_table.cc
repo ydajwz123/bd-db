@@ -8,7 +8,7 @@ namespace bytedance_db_project {
 CustomTable::CustomTable() {
   // Since ncols must larger than 3
   // 10 * 4, align to 8 -> = 5 Bytes per row
-  nbytespr_part_[0] = (FIXED_BITS_FIELD * PART_ONE_NCOLS + 7) >> 3;
+  nbytespr_part_[0] = (FIXED_BITS_SUM_FIELD + FIXED_BITS_FIELD * PART_ONE_NCOLS + 7) >> 3;
   // nbytespr_part_[0] = (nbytespr_part_[0] + 1) & (~0x1);
   
 }
@@ -19,11 +19,6 @@ CustomTable::~CustomTable() {
       delete storage_part_[i];
       storage_part_[i] = nullptr;
     }
-
-  if (storage_sum_row_ != nullptr) {
-    delete storage_sum_row_;
-    storage_sum_row_ = nullptr;
-  }
 }
 
 CustomTable::BitPacker::BitPacker() : bit_offset_(0), 
@@ -100,7 +95,7 @@ void CustomTable::Load(BaseDataLoader *loader) {
   nbytespr_part_[1] = (nbytespr_part_[1] + 1) & (~0x1);
 
   for (size_t i = 0; i < TABLE_NPARTS; ++i)
-    storage_part_[i] = new char[(nbytespr_part_[i] * num_rows_ + 1)];
+    storage_part_[i] = new char[nbytespr_part_[i] * num_rows_ + 1];
 
   for (size_t row_id = 0; row_id < num_rows_; row_id++) {
     auto cur_row = rows.at(row_id);
@@ -122,18 +117,24 @@ void CustomTable::Load(BaseDataLoader *loader) {
       bit_packer.write((uint16_t) val, FIXED_BITS_FIELD);
     }
     bit_packer.flush();
-    *(int64_t*) (storage_part_[0] + nbytespr_part_[0] * row_id) = sum;
+    int64_t tmp_val = *(int64_t*) (storage_part_[0] + nbytespr_part_[0] * row_id);
+    tmp_val &= ~((1 << FIXED_BITS_SUM_FIELD) - 1);
+    tmp_val |= sum;
+    *(int64_t*) (storage_part_[0] + nbytespr_part_[0] * row_id) = tmp_val;
   }
   is_col0_sumed_ = 1;
 }
 
 inline int64_t CustomTable::GetRowSum(int32_t row_id) {
 
-  return *(int64_t*) (storage_part_[0] + nbytespr_part_[0] * row_id);
+  int64_t tmp_val;
+  tmp_val = *(int64_t*) (storage_part_[0] + nbytespr_part_[0] * row_id);
+  tmp_val &= (1 << FIXED_BITS_SUM_FIELD) - 1;
+  return tmp_val;
 }
 
 inline void CustomTable::UpdateRowSum(int32_t row_id, int64_t val_diff) {
-  *(int64_t*) (storage_part_[0] + nbytespr_part_[0] * row_id) += val_diff;
+  *(uint64_t*) (storage_part_[0] + nbytespr_part_[0] * row_id) += val_diff;
 }
 
 int32_t CustomTable::GetIntField(int32_t row_id, int32_t col_id) {
