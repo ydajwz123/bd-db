@@ -109,14 +109,12 @@ void CustomTable::PushIndex12(int16_t col1_v, int16_t col2_v, int32_t row_id) {
 
 void CustomTable::PopIndex12(int16_t col1_v, int16_t col2_v, int32_t row_id) {
   std::vector<int32_t> &v = index_1_2_[col1_v][col2_v];
-  size_t N = v.size();
-  for (size_t i = 0; i < N; ++i)
-    if (v[i] == row_id) {
-      for (size_t j = i; j < N - 1; ++j) {
-        v[j] = v[j + 1];
-      }
+  for (auto it = v.begin(); it != v.end(); ++it) {
+    if (*it == row_id) {
+      v.erase(it);
       break;
     }
+  }
   // delte node
 }
 
@@ -265,6 +263,9 @@ void CustomTable::PutIntField(int32_t row_id, int32_t col_id, int32_t field) {
   ori_val |= (v2 >> (8 - len1));
   sum_diff = field - ori_val;
 
+  if (col_id == 1 || col_id == 2) {
+    PopIndex12(GetIntField(row_id, 1), GetIntField(row_id, 2), row_id);
+  }
   // update value and put value in storage
   v1 = ((v1 >> len0) << len0) | (uint8_t) (field >> len1);
   // caution, v2 will auto extend to more bits if v2 << len1 >> len1
@@ -280,14 +281,7 @@ void CustomTable::PutIntField(int32_t row_id, int32_t col_id, int32_t field) {
     PushIndex0(field, row_id);
   }
   if (col_id == 1 || col_id == 2) {
-    int16_t ori_v[2], col_v[2];
-    int32_t col_id_other = 3 - col_id;
-    ori_v[col_id - 1] = ori_val;
-    col_v[col_id - 1] = field;
-    col_v[col_id_other - 1] = ori_v[col_id_other - 1] = 
-      GetIntField(row_id, col_id_other);
-    PopIndex12(ori_v[0], ori_v[1], row_id);
-    PushIndex12(col_v[0], col_v[1], row_id);
+    PushIndex12(GetIntField(row_id, 1), GetIntField(row_id, 2), row_id);
   }
 }
 
