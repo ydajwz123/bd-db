@@ -82,12 +82,18 @@ private:
   char *storage_part_[TABLE_NPARTS];
   size_t num_cols_tb_[TABLE_NPARTS];
   char *storage_sum_row_;
-  std::map<int16_t, std::vector<int32_t> > index_0_; // index for col0
-  std::map<int16_t, std::map<int16_t, std::vector<int32_t> > > index_2_3_; // index for col2,3
   // N Bytes per row for part1, will align to Bytes for convenience
   size_t nbytes_part_[TABLE_NPARTS];
   bool is_col0_sumed_{0};
   int64_t sum_col0_{0};
   // indexed for col0
+  std::map<int16_t, std::vector<int32_t> > index_0_;
+  std::map<int16_t, std::map<int16_t, std::vector<int32_t> > > index_1_2_;
+
+  void PushIndex0(int16_t col_v, int32_t row_id);
+  void PopIndex0(int16_t col_v, int32_t row_id);
+  void PushIndex12(int16_t col1_v, int16_t col2_v, int32_t row_id);
+  void PopIndex12(int16_t col1_v, int16_t col2_v, int32_t row_id);
+  void PushNumToVec(std::vector<int32_t>& v, int32_t n);
 };
 } // namespace bytedance_db_project
