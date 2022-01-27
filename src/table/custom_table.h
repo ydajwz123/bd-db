@@ -83,8 +83,8 @@ private:
   bool is_col0_sumed_{0};
   int64_t sum_col0_{0};
   // indexed for col0
-  std::map<int16_t, std::list<int32_t> > index_0_;
-  std::map<int16_t, std::list<int32_t> > index_1_;
+  std::map<int16_t, std::vector<int32_t> > index_0_;
+  std::map<int16_t, std::vector<int32_t> > index_1_;
   std::map<int16_t, std::map<int16_t, std::vector<int32_t> > > index_1_2_;
 
   void PushIndex0(int16_t col_v, int32_t row_id);

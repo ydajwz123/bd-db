@@ -94,14 +94,15 @@ void CustomTable::PushIndex0(int16_t col_v, int32_t row_id) {
 }
 
 void CustomTable::PopIndex0(int16_t col_v, int32_t row_id) {
-  std::list<int32_t> &v = index_0_[col_v];
-  std::list<int32_t>::iterator it = v.begin();
-  for (; it != v.end(); ++it) {
-    if (*it == row_id) {
-      v.erase(it);
+  std::vector<int32_t> &v = index_0_[col_v];
+  size_t N = v.size();
+  for (size_t i = 0; i < N; ++i)
+    if (v[i] == row_id) {
+      for (size_t j = i; j < N - 1; ++j) {
+        v[j] = v[j + 1];
+      }
       break;
     }
-  }
   // delete node ...
 }
 
@@ -110,14 +111,15 @@ void CustomTable::PushIndex1(int16_t col_v, int32_t row_id) {
 }
 
 void CustomTable::PopIndex1(int16_t col_v, int32_t row_id) {
-  std::list<int32_t> &v = index_1_[col_v];
-  std::list<int32_t>::iterator it = v.begin();
-  for (; it != v.end(); ++it) {
-    if (*it == row_id) {
-      v.erase(it);
+  std::vector<int32_t> &v = index_1_[col_v];
+  size_t N = v.size();
+  for (size_t i = 0; i < N; ++i)
+    if (v[i] == row_id) {
+      for (size_t j = i; j < N - 1; ++j) {
+        v[j] = v[j + 1];
+      }
       break;
     }
-  }
   // delete node ...
 }
 
@@ -293,10 +295,10 @@ int64_t CustomTable::PredicatedAllColumnsSum(int32_t threshold) {
   // TODO: Implement this!
   // col0 > threshold
   int64_t res = 0;
-  std::map<int16_t, std::list<int32_t> >::iterator it;
+  std::map<int16_t, std::vector<int32_t> >::iterator it;
   it = index_0_.lower_bound((int16_t) threshold + 1);
   for (; it != index_0_.end(); ++it) {
-    std::list<int32_t> &v = it->second;
+    std::vector<int32_t> &v = it->second;
     for (int32_t row_id : v) {
       res += GetRowSum(row_id);
     }
@@ -311,10 +313,10 @@ int64_t CustomTable::PredicatedAllColumnsSum(int32_t threshold) {
 int64_t CustomTable::PredicatedUpdate(int32_t threshold) {
   // TODO: Implement this!
   int64_t cnt = 0;
-  std::map<int16_t, std::list<int32_t> >::iterator it, it_end;
+  std::map<int16_t, std::vector<int32_t> >::iterator it, it_end;
   it_end = index_0_.upper_bound((int16_t) threshold - 1);
   for (it = index_0_.begin(); it != it_end; ++it) {
-    std::list<int32_t> &v = it->second;
+    std::vector<int32_t> &v = it->second;
     for (int32_t row_id : v) {
       PutIntField(row_id, 3, GetIntField(row_id, 3) + GetIntField(row_id, 2));
       cnt++;
