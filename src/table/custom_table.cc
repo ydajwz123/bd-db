@@ -97,7 +97,7 @@ void CustomTable::PopIndex0(int16_t col_v, int32_t row_id) {
   std::vector<int32_t> &v = index_0_[col_v];
   size_t N = v.size();
   for (size_t i = 0; i < N; ++i)
-    if (v[i] == col_v) {
+    if (v[i] == row_id) {
       for (size_t j = i; j < N - 1; ++j) {
         v[j] = v[j + 1];
       }
