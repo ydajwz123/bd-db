@@ -94,15 +94,31 @@ void CustomTable::PushIndex0(int16_t col_v, int32_t row_id) {
 }
 
 void CustomTable::PopIndex0(int16_t col_v, int32_t row_id) {
-  std::vector<int32_t> &v = index_0_[col_v];
-  size_t N = v.size();
-  for (size_t i = 0; i < N; ++i)
-    if (v[i] == row_id) {
-      for (size_t j = i; j < N - 1; ++j) {
-        v[j] = v[j + 1];
-      }
+  std::list<int32_t> &v = index_0_[col_v];
+  std::list<int32_t>::iterator it = v.begin();
+  for (; it != v.end(); ++it) {
+    if (*it == row_id) {
+      v.erase(it);
       break;
     }
+  }
+  // delete node ...
+}
+
+void CustomTable::PushIndex1(int16_t col_v, int32_t row_id) {
+  index_1_[col_v].push_back(row_id);
+}
+
+void CustomTable::PopIndex1(int16_t col_v, int32_t row_id) {
+  std::list<int32_t> &v = index_1_[col_v];
+  std::list<int32_t>::iterator it = v.begin();
+  for (; it != v.end(); ++it) {
+    if (*it == row_id) {
+      v.erase(it);
+      break;
+    }
+  }
+  // delete node ...
 }
 
 void CustomTable::Load(BaseDataLoader *loader) {
@@ -132,6 +148,9 @@ void CustomTable::Load(BaseDataLoader *loader) {
       if (col_id == 0) {
         sum_col0_ += val;
         PushIndex0(val, row_id);
+      }
+      else if (col_id == 1) {
+        PushIndex1(val, row_id);
       }
       // start of part II in this row
       if (col_id == PART_ONE_NCOLS) {
@@ -227,13 +246,15 @@ void CustomTable::PutIntField(int32_t row_id, int32_t col_id, int32_t field) {
 
   // update cached sum
   UpdateRowSum(row_id, sum_diff);
-  if (col_id == 0) {
+  if (col_id == 0 && sum_diff != 0) {
     sum_col0_ += sum_diff;
-    if (field != ori_val) {
-      PopIndex0(ori_val, row_id);
-      PushIndex0(field, row_id);
-    }
+    PopIndex0(ori_val, row_id);
+    PushIndex0(field, row_id);
   }
+  // if (col_id == 1 && sum_diff != 0) {
+  //   PopIndex1(ori_val, row_id);
+  //   PushIndex1(field, row_id);
+  // }
 }
 
 int64_t CustomTable::ColumnSum() {
@@ -254,6 +275,14 @@ int64_t CustomTable::PredicatedColumnSum(int32_t threshold1,
   // TODO: Implement this!
   int64_t res = 0;
 
+  // std::map<int16_t, std::vector<int32_t> >::iterator it;
+  // it = index_1_.lower_bound((int16_t) threshold1 + 1);
+  // for (; it != index_1_.end(); ++it) {
+  //   for (int32_t row_id : it->second) {
+  //     if (GetIntField(row_id, 2) < threshold2)
+  //       res += GetIntField(row_id, 0);
+  //   }
+  // }
   for (size_t row_id = 0; row_id < num_rows_; ++row_id)
     if (GetIntField(row_id, 1) > threshold1 && GetIntField(row_id, 2) < threshold2)
       res += GetIntField(row_id, 0);
@@ -264,10 +293,10 @@ int64_t CustomTable::PredicatedAllColumnsSum(int32_t threshold) {
   // TODO: Implement this!
   // col0 > threshold
   int64_t res = 0;
-  std::map<int16_t, std::vector<int32_t> >::iterator it;
+  std::map<int16_t, std::list<int32_t> >::iterator it;
   it = index_0_.lower_bound((int16_t) threshold + 1);
   for (; it != index_0_.end(); ++it) {
-    std::vector<int32_t> &v = it->second;
+    std::list<int32_t> &v = it->second;
     for (int32_t row_id : v) {
       res += GetRowSum(row_id);
     }
@@ -282,10 +311,10 @@ int64_t CustomTable::PredicatedAllColumnsSum(int32_t threshold) {
 int64_t CustomTable::PredicatedUpdate(int32_t threshold) {
   // TODO: Implement this!
   int64_t cnt = 0;
-  std::map<int16_t, std::vector<int32_t> >::iterator it, it_end;
+  std::map<int16_t, std::list<int32_t> >::iterator it, it_end;
   it_end = index_0_.upper_bound((int16_t) threshold - 1);
   for (it = index_0_.begin(); it != it_end; ++it) {
-    std::vector<int32_t> &v = it->second;
+    std::list<int32_t> &v = it->second;
     for (int32_t row_id : v) {
       PutIntField(row_id, 3, GetIntField(row_id, 3) + GetIntField(row_id, 2));
       cnt++;

@@ -1,6 +1,7 @@
 #pragma once
 #include "table.h"
 #include <vector>
+#include <list>
 #include <map>
 
 // Since DATA ranges [0, 1023), 10 bits are enough. 
@@ -82,11 +83,14 @@ private:
   bool is_col0_sumed_{0};
   int64_t sum_col0_{0};
   // indexed for col0
-  std::map<int16_t, std::vector<int32_t> > index_0_;
+  std::map<int16_t, std::list<int32_t> > index_0_;
+  std::map<int16_t, std::list<int32_t> > index_1_;
   std::map<int16_t, std::map<int16_t, std::vector<int32_t> > > index_1_2_;
 
   void PushIndex0(int16_t col_v, int32_t row_id);
   void PopIndex0(int16_t col_v, int32_t row_id);
+  void PushIndex1(int16_t col_v, int32_t row_id);
+  void PopIndex1(int16_t col_v, int32_t row_id);
   void PushNumToVec(std::vector<int32_t>& v, int32_t n);
 };
 } // namespace bytedance_db_project
