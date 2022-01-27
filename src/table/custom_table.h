@@ -1,6 +1,7 @@
 #pragma once
 #include "table.h"
 #include <vector>
+#include <map>
 
 // Since DATA ranges [0, 1023), 10 bits are enough. 
 // Bottleneck should be of data fetch, 
@@ -69,17 +70,23 @@ private:
 	    uint16_t* ptr_cur_{nullptr};
       bool is_flushed_{0};
   };
+
   uint32_t num_cols_{0};
   uint32_t num_rows_{0};
   // take storage into two part
   // part I: sum, col0, col1, col2, col3
   // part II: col4, col5, ...
   char *storage_part_[TABLE_NPARTS];
-  char *storage_sum_row_;
   // N Bytes per row for part1, will align to Bytes for convenience
   size_t nbytespr_part_[TABLE_NPARTS];
   bool is_col0_sumed_{0};
   int64_t sum_col0_{0};
   // indexed for col0
+  std::map<int16_t, std::vector<int32_t> > index_0_;
+  std::map<int16_t, std::map<int16_t, std::vector<int32_t> > > index_1_2_;
+
+  void PushIndex0(int16_t col_v, int32_t row_id);
+  void PopIndex0(int16_t col_v, int32_t row_id);
+  void PushNumToVec(std::vector<int32_t>& v, int32_t n);
 };
 } // namespace bytedance_db_project

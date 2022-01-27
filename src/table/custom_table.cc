@@ -83,6 +83,28 @@ void CustomTable::BitPacker::reset() {
   is_flushed_ = 0;
 }
 
+void CustomTable::PushNumToVec(std::vector<int32_t>& v, int32_t n) {
+  int N = v.size();
+  for (int i = 0; i < N; ++i) {
+  }
+}
+
+void CustomTable::PushIndex0(int16_t col_v, int32_t row_id) {
+  index_0_[col_v].push_back(row_id);
+}
+
+void CustomTable::PopIndex0(int16_t col_v, int32_t row_id) {
+  std::vector<int32_t> &v = index_0_[col_v];
+  size_t N = v.size();
+  for (size_t i = 0; i < N; ++i)
+    if (v[i] == col_v) {
+      for (size_t j = i; j < N - 1; ++j) {
+        v[j] = v[j + 1];
+      }
+      break;
+    }
+}
+
 void CustomTable::Load(BaseDataLoader *loader) {
   // TODO: Implement this!
   BitPacker bit_packer;
@@ -107,8 +129,10 @@ void CustomTable::Load(BaseDataLoader *loader) {
       val = *(int32_t*) (cur_row + FIXED_FIELD_LEN * col_id);
       // assert(val < 1024 && val >= 0);
       sum += val;
-      if (col_id == 0)
+      if (col_id == 0) {
         sum_col0_ += val;
+        PushIndex0(val, row_id);
+      }
       // start of part II in this row
       if (col_id == PART_ONE_NCOLS) {
         bit_packer.flush();
@@ -203,8 +227,13 @@ void CustomTable::PutIntField(int32_t row_id, int32_t col_id, int32_t field) {
 
   // update cached sum
   UpdateRowSum(row_id, sum_diff);
-  if (col_id == 0)
+  if (col_id == 0) {
     sum_col0_ += sum_diff;
+    if (field != ori_val) {
+      PopIndex0(ori_val, row_id);
+      PushIndex0(field, row_id);
+    }
+  }
 }
 
 int64_t CustomTable::ColumnSum() {
@@ -233,21 +262,40 @@ int64_t CustomTable::PredicatedColumnSum(int32_t threshold1,
 
 int64_t CustomTable::PredicatedAllColumnsSum(int32_t threshold) {
   // TODO: Implement this!
+  // col0 > threshold
   int64_t res = 0;
-  for (size_t row_id = 0; row_id < num_rows_; ++row_id)
-    if (GetIntField(row_id, 0) > threshold)
-        res += GetRowSum(row_id);
+  std::map<int16_t, std::vector<int32_t> >::iterator it;
+  it = index_0_.lower_bound((int16_t) threshold + 1);
+  for (; it != index_0_.end(); ++it) {
+    std::vector<int32_t> &v = it->second;
+    for (int32_t row_id : v) {
+      res += GetRowSum(row_id);
+    }
+  }
+
+  // for (size_t row_id = 0; row_id < num_rows_; ++row_id)
+  //   if (GetIntField(row_id, 0) > threshold)
+  //       res += GetRowSum(row_id);
   return res;
 }
 
 int64_t CustomTable::PredicatedUpdate(int32_t threshold) {
   // TODO: Implement this!
   int64_t cnt = 0;
-  for (size_t row_id  = 0; row_id < num_rows_; ++row_id)
-    if (GetIntField(row_id, 0) < threshold) {
+  std::map<int16_t, std::vector<int32_t> >::iterator it, it_end;
+  it_end = index_0_.upper_bound((int16_t) threshold - 1);
+  for (it = index_0_.begin(); it != it_end; ++it) {
+    std::vector<int32_t> &v = it->second;
+    for (int32_t row_id : v) {
       PutIntField(row_id, 3, GetIntField(row_id, 3) + GetIntField(row_id, 2));
       cnt++;
     }
+  }
+  // for (size_t row_id  = 0; row_id < num_rows_; ++row_id)
+  //   if (GetIntField(row_id, 0) < threshold) {
+  //     PutIntField(row_id, 3, GetIntField(row_id, 3) + GetIntField(row_id, 2));
+  //     cnt++;
+  //   }
   return cnt;
 }
 } // namespace bytedance_db_project
