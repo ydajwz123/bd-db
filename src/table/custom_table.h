@@ -89,6 +89,7 @@ private:
   std::map<int16_t, std::vector<int32_t> > index_1_;
   std::map<int16_t, std::map<int16_t, std::vector<int32_t> > > index_1_2_;
 
+  void Update2to3(int32_t row_id);
   void PushIndex0(int16_t col_v, int32_t row_id);
   void PopIndex0(int16_t col_v, int32_t row_id);
   void PushIndex1(int16_t col_v, int32_t row_id);

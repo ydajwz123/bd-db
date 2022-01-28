@@ -249,6 +249,33 @@ int32_t CustomTable::GetIntField(int32_t row_id, int32_t col_id) {
   return res;
 }
 
+void CustomTable::Update2to3(int32_t row_id) {
+  // table II ,tb_id = 1
+  int byte_id[2], bit_offset[2], len0[2];
+  uint8_t v1[2], v2[2];
+  int32_t ori_val[2] = {0};
+  
+  for (int i = 0; i < 2; ++i) {
+    byte_id[i] = ((row_id * PART_TWO_NCOLS) * FIXED_BITS_FIELD >> 3); 
+    bit_offset[i] = ((row_id * PART_TWO_NCOLS) * FIXED_BITS_FIELD - (byte_id[i] << 3)); 
+
+    v1[i] = *(uint8_t*) (storage_part_[1] + byte_id[i]);
+    v2[i] = *(uint8_t*) (storage_part_[1] + byte_id[i] + 1);
+
+    len0[i] = 8 - bit_offset[i]; // bits in first Byte
+    ori_val[i] |= ((int32_t) v1[i] & ((1 << len0[i]) - 1)) << (FIXED_BITS_FIELD - len0[i]);
+    ori_val[i] |= (v2[i] >> (len0[i] - 2));
+  }
+  ori_val[1] += ori_val[0];
+  v1[1] = ((v1[1] >> len0[1]) << len0[1]) | (uint8_t) ((ori_val[1]) >> (FIXED_BITS_FIELD - len0[1]));
+  // caution, v2 will auto extend to more bits if v2 << len1 >> len1
+  v2[1] = (v2[1] & ((1 << (len0[1] - 2)) - 1)) | ((uint8_t) ori_val[1] << (len0[1] - 2));
+  *(uint8_t*) (storage_part_[1] + byte_id[1]) = v1[1];
+  *(uint8_t*) (storage_part_[1] + byte_id[1] + 1) = v2[1];
+  if (ori_val[0] != 0)
+    PutRowSum(row_id, GetRowSum(row_id) + ori_val[0]);
+}
+
 void CustomTable::PutIntField(int32_t row_id, int32_t col_id, int32_t field) {
   // TODO: Implement this!
   // assert(field < 1024 && field >= 0);
@@ -297,11 +324,6 @@ void CustomTable::PutIntField(int32_t row_id, int32_t col_id, int32_t field) {
   // update cached sum && index
   if (sum_diff != 0) {
     PutRowSum(row_id, GetRowSum(row_id) + sum_diff);
-    // if (col_id == 0) {
-    //   sum_col0_ += sum_diff;
-    //   PopIndex0(ori_val, row_id);
-    //   PushIndex0(field, row_id);
-    // }
     switch (col_id) {
       case 0:
         sum_col0_ += sum_diff;
@@ -389,7 +411,8 @@ int64_t CustomTable::PredicatedUpdate(int32_t threshold) {
   for (it = index_0_.begin(); it != it_end; ++it) {
     std::vector<int32_t> &v = it->second;
     for (int32_t row_id : v) {
-      PutIntField(row_id, 3, GetIntField(row_id, 3) + GetIntField(row_id, 2));
+      // PutIntField(row_id, 3, GetIntField(row_id, 3) + GetIntField(row_id, 2));
+      Update2to3(row_id);
       cnt++;
     }
   }
