@@ -86,11 +86,11 @@ void CustomTable::BitPacker::reset() {
   is_flushed_ = 0;
 }
 
-void CustomTable::PushIndex0(int16_t col_v, int32_t row_id) {
+inline void CustomTable::PushIndex0(int16_t col_v, int32_t row_id) {
   index_0_[col_v].push_back(row_id);
 }
 
-void CustomTable::PopIndex0(int16_t col_v, int32_t row_id) {
+inline void CustomTable::PopIndex0(int16_t col_v, int32_t row_id) {
   std::vector<int32_t> &v = index_0_[col_v];
   size_t N = v.size();
   for (size_t i = 0; i < N; ++i)
@@ -103,11 +103,11 @@ void CustomTable::PopIndex0(int16_t col_v, int32_t row_id) {
   // delete
 }
 
-void CustomTable::PushIndex1(int16_t col_v, int32_t row_id) {
+inline void CustomTable::PushIndex1(int16_t col_v, int32_t row_id) {
   index_1_[col_v].push_back(row_id);
 }
 
-void CustomTable::PopIndex1(int16_t col_v, int32_t row_id) {
+inline void CustomTable::PopIndex1(int16_t col_v, int32_t row_id) {
   std::vector<int32_t> &v = index_1_[col_v];
   size_t N = v.size();
   for (size_t i = 0; i < N; ++i)
@@ -326,13 +326,13 @@ void CustomTable::PutIntField(int32_t row_id, int32_t col_id, int32_t field) {
     PutRowSum(row_id, GetRowSum(row_id) + sum_diff);
     switch (col_id) {
       case 0:
+        PushIndex0(field, row_id);
         sum_col0_ += sum_diff;
         PopIndex0(ori_val, row_id);
-        PushIndex0(field, row_id);
         break;
       case 1:
-        PopIndex1(ori_val, row_id);
         PushIndex1(field, row_id);
+        PopIndex1(ori_val, row_id);
         break;
     }
   }
