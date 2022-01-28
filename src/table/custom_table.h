@@ -29,9 +29,6 @@ public:
   // Returns the int32_t field at row `row_id` and column `col_id`.
   int32_t GetIntField(int32_t row_id, int32_t col_id) override;
   
-  int64_t GetRowSum(int32_t row_id);
-  void PutRowSum(int32_t row_id, int64_t val);
-
   // Inserts the passed-in int32_t field at row `row_id` and column `col_id`.
   void PutIntField(int32_t row_id, int32_t col_id, int32_t field) override;
 
@@ -76,9 +73,10 @@ private:
   };
   uint32_t num_cols_{0};
   uint32_t num_rows_{0};
-  // take storage into two part
-  // part I: sum, col0, col1, col2, col3
-  // part II: col4, col5, ...
+  // take storage into three part
+  // part I: col0, 
+  // part II: col2, col3
+  // part III: col1, col4, col5, ....
   char *storage_part_[TABLE_NPARTS];
   size_t num_cols_tb_[TABLE_NPARTS];
   char *storage_sum_row_;
@@ -88,12 +86,18 @@ private:
   int64_t sum_col0_{0};
   // indexed for col0
   std::map<int16_t, std::vector<int32_t> > index_0_;
+  std::map<int16_t, std::vector<int32_t> > index_1_;
   std::map<int16_t, std::map<int16_t, std::vector<int32_t> > > index_1_2_;
 
   void PushIndex0(int16_t col_v, int32_t row_id);
   void PopIndex0(int16_t col_v, int32_t row_id);
+  void PushIndex1(int16_t col_v, int32_t row_id);
+  void PopIndex1(int16_t col_v, int32_t row_id);
   void PushIndex12(int16_t col1_v, int16_t col2_v, int32_t row_id);
   void PopIndex12(int16_t col1_v, int16_t col2_v, int32_t row_id);
   void PushNumToVec(std::vector<int32_t>& v, int32_t n);
+  int64_t GetRowSum(int32_t row_id);
+  void PutRowSum(int32_t row_id, int64_t val);
+
 };
 } // namespace bytedance_db_project
