@@ -1,4 +1,5 @@
 #include "custom_table.h"
+#include <algorithm>
 #include <cstring>
 #include <assert.h>
 #include <iostream>
@@ -92,14 +93,16 @@ inline void CustomTable::PushIndex0(int16_t col_v, int32_t row_id) {
 
 inline void CustomTable::PopIndex0(int16_t col_v, int32_t row_id) {
   std::vector<int32_t> &v = index_0_[col_v];
-  size_t N = v.size();
-  for (size_t i = 0; i < N; ++i)
-    if (v[i] == row_id) {
-      for (size_t j = i; j < N - 1; ++j) {
-        v[j] = v[j + 1];
-      }
-      break;
-    }
+  std::vector<int>::iterator it = std::find(v.begin(), v.end(), row_id);
+  v.erase(it);
+  // size_t N = v.size();
+  // for (size_t i = 0; i < N; ++i)
+  //   if (v[i] == row_id) {
+  //     for (size_t j = i; j < N - 1; ++j) {
+  //       v[j] = v[j + 1];
+  //     }
+  //     break;
+  //   }
   // delete
 }
 
@@ -109,14 +112,16 @@ inline void CustomTable::PushIndex1(int16_t col_v, int32_t row_id) {
 
 inline void CustomTable::PopIndex1(int16_t col_v, int32_t row_id) {
   std::vector<int32_t> &v = index_1_[col_v];
-  size_t N = v.size();
-  for (size_t i = 0; i < N; ++i)
-    if (v[i] == row_id) {
-      for (size_t j = i; j < N - 1; ++j) {
-        v[j] = v[j + 1];
-      }
-      break;
-    }
+  std::vector<int>::iterator it = std::find(v.begin(), v.end(), row_id);
+  v.erase(it);
+  // size_t N = v.size();
+  // for (size_t i = 0; i < N; ++i)
+  //   if (v[i] == row_id) {
+  //     for (size_t j = i; j < N - 1; ++j) {
+  //       v[j] = v[j + 1];
+  //     }
+  //     break;
+  //   }
   // delete
 }
 
@@ -324,15 +329,31 @@ void CustomTable::PutIntField(int32_t row_id, int32_t col_id, int32_t field) {
   // update cached sum && index
   if (sum_diff != 0) {
     PutRowSum(row_id, GetRowSum(row_id) + sum_diff);
+    // if (col_id == 0) {
+    //   PushIndex0(field, row_id);
+    //   sum_col0_ += sum_diff;
+    //   PopIndex0(ori_val, row_id);
+    // }
+    // std::vector<int>::iterator it;
+    // std::vector<int32_t> *v;
+    
     switch (col_id) {
       case 0:
-        PushIndex0(field, row_id);
         sum_col0_ += sum_diff;
+        // v = &index_0_[ori_val];
+        // it = std::find(v->begin(), v->end(), row_id);
+        // v->erase(it);
+        // index_0_[field].push_back(row_id);
+        PushIndex0(field, row_id);
         PopIndex0(ori_val, row_id);
         break;
       case 1:
         PushIndex1(field, row_id);
         PopIndex1(ori_val, row_id);
+        // v = &index_1_[ori_val];
+        // it = std::find(v->begin(), v->end(), row_id);
+        // v->erase(it);
+        // index_1_[field].push_back(row_id);
         break;
     }
   }
