@@ -248,15 +248,16 @@ void CustomTable::PutIntField(int32_t row_id, int32_t col_id, int32_t field) {
 
   // update cached sum
   UpdateRowSum(row_id, sum_diff);
+  // if (__builtin_expect((col_id == 0 && sum_diff != 0), 0)) {
   if (col_id == 0 && sum_diff != 0) {
     sum_col0_ += sum_diff;
     PopIndex0(ori_val, row_id);
     PushIndex0(field, row_id);
   }
-  // if (col_id == 1 && sum_diff != 0) {
-  //   PopIndex1(ori_val, row_id);
-  //   PushIndex1(field, row_id);
-  // }
+  if (col_id == 1 && sum_diff != 0) {
+    PopIndex1(ori_val, row_id);
+    PushIndex1(field, row_id);
+  }
 }
 
 int64_t CustomTable::ColumnSum() {
@@ -277,18 +278,18 @@ int64_t CustomTable::PredicatedColumnSum(int32_t threshold1,
   // TODO: Implement this!
   int64_t res = 0;
 
-  // std::map<int16_t, std::vector<int32_t> >::iterator it;
-  // it = index_1_.lower_bound((int16_t) threshold1 + 1);
-  // for (; it != index_1_.end(); ++it) {
-  //   for (int32_t row_id : it->second) {
-  //     if (GetIntField(row_id, 2) < threshold2)
-  //       res += GetIntField(row_id, 0);
-  //   }
-  // }
-  for (size_t row_id = 0; row_id < num_rows_; ++row_id)
-    if (GetIntField(row_id, 1) > threshold1 && GetIntField(row_id, 2) < threshold2)
-      res += GetIntField(row_id, 0);
-  return res;
+  std::map<int16_t, std::vector<int32_t> >::iterator it;
+  it = index_1_.lower_bound((int16_t) threshold1 + 1);
+  for (; it != index_1_.end(); ++it) {
+    for (int32_t row_id : it->second) {
+      if (GetIntField(row_id, 2) < threshold2)
+        res += GetIntField(row_id, 0);
+    }
+  }
+  // for (size_t row_id = 0; row_id < num_rows_; ++row_id)
+  //   if (GetIntField(row_id, 1) > threshold1 && GetIntField(row_id, 2) < threshold2)
+  //     res += GetIntField(row_id, 0);
+  // return res;
 }
 
 int64_t CustomTable::PredicatedAllColumnsSum(int32_t threshold) {
