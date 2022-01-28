@@ -7,7 +7,7 @@
 // Since DATA ranges [0, 1023), 10 bits are enough. 
 // Bottleneck should be of data fetch, 
 // rather than computation complexity of offset.
-#define FIXED_BITS_FIELD     10
+#define FIXED_BITS_FIELD     16
 #define FIXED_BITS_SUM_FIELD 24 // 24 bits should be enough
 #define TABLE_NPARTS   2
 #define PART_ONE_NCOLS 4
