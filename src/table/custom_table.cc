@@ -1,5 +1,6 @@
 #include "custom_table.h"
 #include <algorithm>
+#include <random>
 #include <cstring>
 #include <assert.h>
 #include <iostream>
@@ -177,6 +178,9 @@ void CustomTable::Load(BaseDataLoader *loader) {
       if (col_id == 0) {
         sum_col0_ += val;
         PushIndex0(val, (int32_t) row_id);
+        // test
+        // auto rng = std::default_random_engine {};
+        // std::shuffle(index_0_[val].begin(), index_0_[val].end(), rng);
         tb_id = 0;
       }
       else if (col_id == 2 || col_id == 3) {
@@ -190,6 +194,8 @@ void CustomTable::Load(BaseDataLoader *loader) {
       // }
       if (col_id == 1) {
         PushIndex1(val, row_id);
+        // auto rng = std::default_random_engine {};
+        // std::shuffle(index_1_[val].begin(), index_1_[val].end(), rng);
       }
       bit_packer[tb_id].write((uint16_t) val, FIXED_BITS_FIELD);
     }
