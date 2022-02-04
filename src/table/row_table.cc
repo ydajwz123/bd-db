@@ -6,16 +6,7 @@
 
 namespace bytedance_db_project {
 
-struct SumArgs_T {
-  int32_t begin;
-  int32_t end;
-  int64_t res;
-};
-
 RowTable::RowTable() {
-  unsigned nthreads = std::thread::hardware_concurrency();
-  nthreads = nthreads < 1 ? 1 : nthreads;
-  nthreads_ = nthreads > MAX_THREADS ? MAX_THREADS : nthreads;
 }
 
 RowTable::~RowTable() {
@@ -44,20 +35,8 @@ int32_t RowTable::GetIntField(int32_t row_id, int32_t col_id) {
 
 void RowTable::PutIntField(int32_t row_id, int32_t col_id, int32_t field) {
   // TODO: Implement this!
-  if (col_id == 0) {
-    int32_t original_val = *(int32_t *) (rows_ + (row_id * num_cols_ + col_id) * FIXED_FIELD_LEN);
-    col0_sum_ += field - original_val;
-  }
   *(int32_t *) (rows_ + (row_id * num_cols_ + col_id) * FIXED_FIELD_LEN) = field;
   return;
-}
-
-void RowTable::ColumnSumHelper(void *arg) {
-  SumArgs_T *sum_args = (SumArgs_T *) arg;
-  int64_t res = 0;
-  for (int i = sum_args->begin; i < sum_args->end; ++i)
-    res += GetIntField(i, 0);
-  sum_args->res = res;
 }
 
 int64_t RowTable::ColumnSum() {
@@ -79,13 +58,8 @@ int64_t RowTable::ColumnSum() {
 
   // for (size_t i = 0; i < nthreads_; ++i)
   //   res += sum_args[i].res;
-  if (is_col0_sumed_)
-    return col0_sum_;
   for (int i = 0; i < num_rows_; ++i)
     res += GetIntField(i, 0);
-  col0_sum_ = res;
-  is_col0_sumed_ = 1;
-  
   return res;
 }
 
