@@ -1,19 +1,19 @@
 #pragma once
 #include "table.h"
 #include <vector>
+#include <list>
 #include <map>
 
 // Since DATA ranges [0, 1023), 10 bits are enough. 
 // Bottleneck should be of data fetch, 
 // rather than computation complexity of offset.
-#define FIXED_BITS_FIELD     10
+#define FIXED_BITS_FIELD_0   10
+#define FIXED_BITS_FIELD_1   16
 #define FIXED_BITS_SUM_FIELD 24 // 24 bits should be enough
-#define TABLE_NPARTS   3 // col0 | col2,3 | col1, col4, col5 ...
-#define PART_ONE_NCOLS 1
-#define PART_TWO_NCOLS 2
+#define TABLE_NPARTS   2
+#define PART_ONE_NCOLS 3
 
 #define MAXB 16
-
 namespace bytedance_db_project {
 //
 // Custom table implementation to adapt to provided query mix.
@@ -55,38 +55,29 @@ public:
   int64_t PredicatedUpdate(int32_t threshold) override;
 
 private:
-  // BitPacker for 10bit num
-  // No template needed
-  class BitPacker {
-    public:
-      BitPacker();
-      ~BitPacker();
-      void set_ptr_cur(uint16_t* ptr_cur);
-      int write(uint16_t val, size_t nbits);
-      void flush();
-      int16_t swap_bytes(uint16_t ptr);
-      void reset();
-    private:
-      size_t bit_offset_{0};
-	    uint16_t* ptr_cur_{nullptr};
-      bool is_flushed_{0};
-  };
+  
   uint32_t num_cols_{0};
   uint32_t num_rows_{0};
+<<<<<<< HEAD
   // take storage into three part
   // part I: col0, 
   // part II: col2, col3
   // part III: col1, col4, col5, ....
+=======
+  // take storage into two part
+  // part I: col0, col2, col3
+  // part II: col1, col4, col5, ...
+>>>>>>> DevTwoTableNG
   char *storage_part_[TABLE_NPARTS];
-  size_t num_cols_tb_[TABLE_NPARTS];
   char *storage_sum_row_;
   // N Bytes per row for part1, will align to Bytes for convenience
-  size_t nbytes_part_[TABLE_NPARTS];
+  size_t nbytespr_part_[TABLE_NPARTS];
   bool is_col0_sumed_{0};
   int64_t sum_col0_{0};
   // indexed for col0
   std::map<int16_t, std::vector<int32_t> > index_0_;
   std::map<int16_t, std::vector<int32_t> > index_1_;
+<<<<<<< HEAD
   std::map<int16_t, std::map<int16_t, std::vector<int32_t> > > index_1_2_;
 
   void Update2to3(int32_t row_id);
@@ -100,5 +91,18 @@ private:
   int64_t GetRowSum(int32_t row_id);
   void PutRowSum(int32_t row_id, int64_t val);
 
+=======
+
+  // if col2 < threshold then return Col0, else return 0;
+  int32_t GetCol0AtRowIfCol2(int32_t row_id, int32_t threshold);
+  // col3 = col3 + col2
+  void UpdateCol2ToCol3(int32_t row_id);
+  // get sum of row_id from cache
+  int64_t GetRowSum(int32_t row_id);
+  void UpdateRowSum(int32_t row_id, int64_t val_diff);
+
+  void PushIndex1D(std::map<int16_t, std::vector<int32_t> >&, int16_t, int32_t);
+  void PopIndex1D(std::map<int16_t, std::vector<int32_t> >&, int16_t, int32_t);
+>>>>>>> DevTwoTableNG
 };
 } // namespace bytedance_db_project
