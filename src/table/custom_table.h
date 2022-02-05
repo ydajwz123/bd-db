@@ -58,16 +58,9 @@ private:
   
   uint32_t num_cols_{0};
   uint32_t num_rows_{0};
-<<<<<<< HEAD
-  // take storage into three part
-  // part I: col0, 
-  // part II: col2, col3
-  // part III: col1, col4, col5, ....
-=======
-  // take storage into two part
+ // take storage into two part
   // part I: col0, col2, col3
   // part II: col1, col4, col5, ...
->>>>>>> DevTwoTableNG
   char *storage_part_[TABLE_NPARTS];
   char *storage_sum_row_;
   // N Bytes per row for part1, will align to Bytes for convenience
@@ -77,21 +70,6 @@ private:
   // indexed for col0
   std::map<int16_t, std::vector<int32_t> > index_0_;
   std::map<int16_t, std::vector<int32_t> > index_1_;
-<<<<<<< HEAD
-  std::map<int16_t, std::map<int16_t, std::vector<int32_t> > > index_1_2_;
-
-  void Update2to3(int32_t row_id);
-  void PushIndex0(int16_t col_v, int32_t row_id);
-  void PopIndex0(int16_t col_v, int32_t row_id);
-  void PushIndex1(int16_t col_v, int32_t row_id);
-  void PopIndex1(int16_t col_v, int32_t row_id);
-  void PushIndex12(int16_t col1_v, int16_t col2_v, int32_t row_id);
-  void PopIndex12(int16_t col1_v, int16_t col2_v, int32_t row_id);
-  void PushNumToVec(std::vector<int32_t>& v, int32_t n);
-  int64_t GetRowSum(int32_t row_id);
-  void PutRowSum(int32_t row_id, int64_t val);
-
-=======
 
   // if col2 < threshold then return Col0, else return 0;
   int32_t GetCol0AtRowIfCol2(int32_t row_id, int32_t threshold);
@@ -103,6 +81,5 @@ private:
 
   void PushIndex1D(std::map<int16_t, std::vector<int32_t> >&, int16_t, int32_t);
   void PopIndex1D(std::map<int16_t, std::vector<int32_t> >&, int16_t, int32_t);
->>>>>>> DevTwoTableNG
 };
 } // namespace bytedance_db_project
