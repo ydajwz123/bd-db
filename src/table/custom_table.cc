@@ -109,6 +109,10 @@ int32_t CustomTable::GetIntField(int32_t row_id, int32_t col_id) {
   int byte_id, bit_offset = 2 * FIXED_BITS_FIELD_0;
   int32_t res = 0;
 
+  // tb0: col0, 2, 3
+  // 32bits: 2bits + 10bits for col0 + 10bits for col2 + 10bits for col3
+  // tb1: col1, 4, 5, ...
+  // 16 bits for each element
   switch (col_id) {
     case 3:
       bit_offset -= FIXED_BITS_FIELD_0;
