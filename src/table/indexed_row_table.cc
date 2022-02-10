@@ -45,13 +45,12 @@ void IndexedRowTable::PutIntField(int32_t row_id, int32_t col_id,
   if (col_id == index_column_ && ori_v != field) {
     std::vector<int> &tmp_vec = index_[ori_v];
     // delete current row_id from original place
-    for (size_t i = 0; i < tmp_vec.size(); ++i)
-      if (tmp_vec[i] == row_id) {
-        for (size_t j = i; j < tmp_vec.size() - 1; ++j) {
-          tmp_vec[j] = tmp_vec[j + 1];
-        }
+    for (auto it = tmp_vec.begin(); it != tmp_vec.end(); ++it) {
+      if (*it == row_id) {
+        tmp_vec.erase(it);
         break;
       }
+    }
     // add to new place
     index_[field].push_back(row_id);
   }
